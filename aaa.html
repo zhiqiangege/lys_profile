@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>高德地图定位示例</title>
+  <script type="text/javascript">
+    window._AMapSecurityConfig = {
+      securityJsCode: 'd90c983c9d4e6e93b813e860a7223cb5',
+    }
+  </script>
+  <script type="text/javascript" src="https://webapi.amap.com/maps?v=1.4.15&key=54898d466dad6c8812db361524277abd&plugin=AMap.Geolocation,AMap.Geocoder"></script>
+  <style>
+    #container {
+      width: 100%;
+      height: 400px;
+    }
+    .info {
+      padding: 10px;
+      font-family: Arial, sans-serif;
+    }
+    #status {
+      color: #09f;
+    }
+    #address-detail {
+      margin-top: 10px;
+      padding: 10px;
+      background: #f5f5f5;
+      border-radius: 5px;
+    }
+  </style>
+</head>
+
+<body>
+  <div id='container'></div>
+  <div class="info">
+    <h4 id='status'>定位中...</h4>
+    <hr>
+    <p id='result'></p>
+    <div id="address-detail">
+      <p><strong>详细地址信息：</strong></p>
+      <p id="formatted-address"></p>
+      <p><strong>行政区划：</strong></p>
+      <p>省份：<span id="province"></span></p>
+      <p>城市：<span id="city"></span></p>
+      <p>区县：<span id="district"></span></p>
+      <p>乡镇/街道：<span id="township"></span></p>
+      <p>街道：<span id="street"></span></p>
+      <p>门牌号：<span id="number"></span></p>
+    </div>
+    <hr>
+  </div>
+
+  <script type="text/javascript">
+    // 初始化地图
+    var map = new AMap.Map('container', {
+      resizeEnable: true,
+      zoom: 16  // 默认放大级别
+    });
+    
+    // 添加定位和地理编码插件
+    AMap.plugin(['AMap.Geolocation', 'AMap.Geocoder'], function() {
+      // 初始化定位
+      var geolocation = new AMap.Geolocation({
+        enableHighAccuracy: true,   // 是否使用高精度定位
+        timeout: 10000,            // 定位超时时间
+        buttonPosition: 'RB',      // 定位按钮位置
+        buttonOffset: new AMap.Pixel(10, 20),
+        zoomToAccuracy: true       // 定位成功后调整地图视野
+      });
+      
+      // 初始化地理编码
+      var geocoder = new AMap.Geocoder({
+        city: "全国",              // 城市设为全国，默认会解析定位到的城市
+        radius: 1000              // 范围半径
+      });
+      
+      // 将定位控件添加到地图上
+      map.addControl(geolocation);
+      
+      // 获取当前位置
+      geolocation.getCurrentPosition(function(status, result) {
+        if (status == 'complete') {
+          onComplete(result);
+        } else {
+          onError(result);
+        }
+      });
+      
+      // 解析定位结果
+      function onComplete(data) {
+        document.getElementById('status').innerHTML = '定位成功';
+        
+        // 显示基本定位信息
+        var str = [];
+        str.push('定位结果：' + data.position);
+        str.push('定位类别：' + data.location_type);
+        if (data.accuracy) {
+          str.push('精度：' + data.accuracy + ' 米');
+        }
+        str.push('是否经过偏移：' + (data.isConverted ? '是' : '否'));
+        document.getElementById('result').innerHTML = str.join('<br>');
+        
+        // 使用逆地理编码获取详细地址信息
+        geocoder.getAddress(data.position, function(status, result) {
+          if (status === 'complete' && result.regeocode) {
+            var address = result.regeocode;
+            var addressComponent = address.addressComponent;
+            
+            // 显示详细地址信息
+            document.getElementById('formatted-address').innerHTML = address.formattedAddress;
+            
+            // 显示行政区划信息
+            document.getElementById('province').innerHTML = addressComponent.province || '未知';
+            document.getElementById('city').innerHTML = addressComponent.city || addressComponent.province || '未知';
+            document.getElementById('district').innerHTML = addressComponent.district || '未知';
+            document.getElementById('township').innerHTML = addressComponent.township || '未知';
+            document.getElementById('street').innerHTML = addressComponent.street || '未知';
+            document.getElementById('number').innerHTML = addressComponent.number || '未知';
+            
+            // 在地图上标记位置
+            var marker = new AMap.Marker({
+              position: data.position,
+              map: map
+            });
+            
+            // 设置地图中心点
+            map.setCenter(data.position);
+            
+          } else {
+            console.error('逆地理编码失败:', result);
+            document.getElementById('formatted-address').innerHTML = '获取详细地址失败';
+          }
+        });
+      }
+      
+      // 解析定位错误信息
+      function onError(data) {
+        document.getElementById('status').innerHTML = '定位失败';
+        document.getElementById('result').innerHTML = '失败原因排查信息:' + data.message;
+        document.getElementById('address-detail').style.display = 'none';
+      }
+    });
+  </script>
+</body>
+</html>
